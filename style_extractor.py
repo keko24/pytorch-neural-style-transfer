@@ -32,7 +32,7 @@ def compute_gram_matrix(feature_maps):
 def compute_loss(inputs, target, model, weights=None):
     layers = model.get_layers()
     if weights == None:
-        weights = [1 / layers] * layers
+        weights = [1 / len(layers)] * len(layers)
     input_features = model(inputs)
     target_features = model(target)
     style_loss = torch.zeros(1).to(inputs.device)
