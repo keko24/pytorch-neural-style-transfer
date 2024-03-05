@@ -29,7 +29,7 @@ class StyleExtractor(nn.Module):
 def compute_gram_matrix(feature_maps):
     return torch.matmul(feature_maps, torch.transpose(feature_maps, -2, -1))
 
-def compute_loss(inputs, target, model, weights=None):
+def compute_style_loss(inputs, target, model, weights=None):
     layers = model.get_layers()
     if weights == None:
         weights = [1 / len(layers)] * len(layers)
