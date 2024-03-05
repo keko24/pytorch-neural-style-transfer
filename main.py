@@ -14,7 +14,7 @@ if __name__ == '__main__':
     setup = load_json(os.path.join("setup_files", "setup.json"))
     DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
 
-    img = Image.open('data/pebbles.jpg')
+    img = Image.open(os.path.join('data', 'pebbles.jpg'))
     mean = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32)
     std = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32)
     preprocess = transforms.Compose([
@@ -46,4 +46,4 @@ if __name__ == '__main__':
     unnormalize = transforms.Normalize(mean=(-mean / std).tolist(), std=(1.0 / std).tolist())
     white_noise = unnormalize(white_noise)
 
-    save_image(white_noise, 'data/white_noise.jpg')
+    save_image(white_noise, 'results/pebbles-texture.jpg')
