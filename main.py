@@ -46,4 +46,6 @@ if __name__ == '__main__':
     unnormalize = transforms.Normalize(mean=(-mean / std).tolist(), std=(1.0 / std).tolist())
     white_noise = unnormalize(white_noise)
 
-    save_image(white_noise, 'results/pebbles-texture.jpg')
+    if not os.path.exists('results'):
+        os.mkdir('results')
+    save_image(white_noise, os.path.join('results', 'pebbles-texture.jpg'))
