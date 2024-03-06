@@ -1,4 +1,5 @@
 import os
+import time
 
 from PIL import Image
 import numpy as np
@@ -33,11 +34,7 @@ if __name__ == '__main__':
     style = style.unsqueeze(0)
     style = style.to(DEVICE)
 
-    print(content.shape)
-    print(style.shape)
-
-    white_noise = torch.randn(content.shape[1:])
-    white_noise = white_noise.unsqueeze(0)
+    white_noise = torch.randn(content.shape)
     white_noise = white_noise.to(DEVICE)
     white_noise.requires_grad_(True)
 
@@ -53,10 +50,22 @@ if __name__ == '__main__':
     beta = setup["beta"]
     optimizer = torch.optim.Adam([white_noise], lr=setup["lr"])
     for epoch in range(setup["epochs"]):
+        epoch_start_time = time.time()
         optimizer.zero_grad()
-        loss = alpha * compute_content_loss(content, white_noise, content_extractor) + beta * compute_style_loss(style, white_noise, style_extractor)
+        content_loss = compute_content_loss(content, white_noise, content_extractor)
+        style_loss = compute_style_loss(style, white_noise, style_extractor)
+        loss = alpha * content_loss + beta * style_loss
         loss.backward()
         optimizer.step()
+        print("Epoch {}/{}....\n".format(epoch + 1, setup["epochs"]),
+                  "Content Loss: {:.4f}".format(content_loss.item()),
+                  "Style Loss: {:.4f}\n".format(style_loss.item()),
+                  "Total Loss: {:.4f}".format(loss.item()),
+                  )
+        epoch_end_time = int(time.time() - epoch_start_time)
+        print('epoch {} end time: {:02d}:{:02d}:{:02d}'.format(epoch + 1, epoch_end_time // 3600,
+                                                       (epoch_end_time % 3600 // 60),
+                                                       epoch_end_time % 60))
     
     unnormalize = transforms.Normalize(mean=(-mean / std).tolist(), std=(1.0 / std).tolist())
     white_noise = unnormalize(white_noise)

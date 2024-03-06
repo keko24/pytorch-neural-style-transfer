@@ -9,10 +9,10 @@ class StyleExtractor(nn.Module):
         if layers == None:
             layers = {
                 "features.0": "conv1_1",
-                "features.4": "pool1",
-                "features.9": "pool2",
-                "features.18": "pool3",
-                "features.27": "pool4",
+                "features.5": "conv2_1",
+                "features.10": "conv3_1",
+                "features.19": "conv4_1",
+                "features.28": "conv5_1",
             }
         model = vgg19(weights='DEFAULT').to(DEVICE)
         self._layers = layers
