@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from torch.nn.functional import mse_loss
 from torchvision.models import vgg19
 from torchvision.models.feature_extraction import create_feature_extractor
 
@@ -26,5 +27,5 @@ def compute_content_loss(inputs, target, model):
     input_features = model(inputs)
     target_features = model(target)
     layer = model.get_layer()
-    content_loss = 0.5 * torch.sum((input_features[layer] - target_features[layer]) ** 2)
+    content_loss = mse_loss(input_features[layer], target_features[layer])
     return content_loss
