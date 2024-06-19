@@ -1,62 +1,78 @@
 from torch import nn
 from torchvision.models import vgg19
+from torchvision import transforms
 
 from loss import StyleLoss, ContentLoss
 
 class ContentAndStyleExtractor(nn.Module):
-    def __init__(self, DEVICE, content, style, content_layer=None, style_layers=None):
+    def __init__(self, content: int, style: list[int], DEVICE):
         super(ContentAndStyleExtractor, self).__init__()
-        if style_layers == None:
-            style_layers = [0, 5, 10, 19, 28]
-        if content_layer == None:
-            content_layer = 28
+        style_layers = ["conv1_1", "conv2_1", "conv3_1", "conv4_1", "conv5_1"]
+        content_layers = ["conv4_2"]
         
-        assert isinstance(style_layers, list) and all(isinstance(layer, int) for layer in style_layers) and max(style_layers) <= 36 and min(style_layers) >= 0, "style_layes should be a list containing integer values between 0 and 36 for the indices of the layers in vgg19 that you want to use in the model."
-        assert isinstance(content_layer, int) and content_layer >= 0 and content_layer <= 36, "content_layer should an integer between 0 and 36 for the layer you want to use in the model."
         style_layers.sort()
 
         vgg = vgg19(weights='DEFAULT').features.eval().to(DEVICE)
+        vgg.requires_grad_(False)
         for parameter in vgg.parameters():
             parameter.requires_grad_(False)
+        
+        self.style_losses = []
+        self.content_losses = []
 
-        self.content_features = nn.Sequential()
+        self.normalize = Normalize()
+        self.model = nn.Sequential(self.normalize)
 
-        for i in range(content_layer + 1):
-            if isinstance(vgg[i], nn.ReLU):
-                self.content_features.add_module(str(i), nn.ReLU(inplace=False))
-            elif isinstance(vgg[i], nn.MaxPool2d):
-                self.content_features.add_module(str(i), nn.AvgPool2d(kernel_size=vgg[i].kernel_size, stride=vgg[i].stride, padding=vgg[i].padding, ceil_mode=vgg[i].ceil_mode))
+        pool_idx, conv_idx, relu_idx, bn_idx, style_loss_idx, content_loss_idx = (1, 1, 1, 1, 1, 1)
+        for layer in vgg.children():
+            if isinstance(layer, nn.MaxPool2d):
+                name = f"pool_{pool_idx}"
+                layer = nn.AvgPool2d(kernel_size=layer.kernel_size, stride=layer.stride, padding=layer.padding, ceil_mode=layer.ceil_mode)
+                pool_idx += 1
+                relu_idx, conv_idx, bn_idx = (1, 1, 1)
+            elif isinstance(layer, nn.Conv2d):
+                name = f"conv{pool_idx}_{conv_idx}"
+                conv_idx += 1
+            elif isinstance(layer, nn.ReLU):
+                name = f"relu{pool_idx}_{relu_idx}"
+                layer = nn.ReLU(inplace=False)
+                relu_idx += 1
+            elif isinstance(layer, nn.BatchNorm2d):
+                name = f"bn_{pool_idx}_{bn_idx}"
+                bn_idx += 1
             else:
-                self.content_features.add_module(str(i), vgg[i])
+                raise RuntimeError('Unrecognized layer: {}'.format(layer.__class__.__name__))
 
-        content = self.content_features(content).detach()
-        self.content_loss = ContentLoss(content)
+            self.model.add_module(name, layer)
 
-        self.style_features = nn.ModuleList()
-        self.style_losses = nn.ModuleList()
-        for i, layer in enumerate(style_layers):
-            layer_subset = nn.Sequential() 
-            start_layer = 0 if i == 0 else style_layers[i - 1] + 1
+            if name in style_layers:
+                target_style = self.model(style).detach()
+                style_loss = StyleLoss(target_style)
+                self.model.add_module(f"style_loss_{style_loss_idx}", style_loss) 
+                self.style_losses.append(style_loss)
+                style_loss_idx += 1
 
-            for j in range(start_layer, layer + 1):
-                if isinstance(vgg[j], nn.ReLU):
-                    layer_subset.add_module(str(j), nn.ReLU(inplace=False))
-                elif isinstance(vgg[i], nn.MaxPool2d):
-                    layer_subset.add_module(str(i), nn.AvgPool2d(kernel_size=vgg[i].kernel_size, stride=vgg[i].stride, padding=vgg[i].padding, ceil_mode=vgg[i].ceil_mode))
-                else:
-                    layer_subset.add_module(str(j), vgg[j])
+            if name in content_layers:
+                target_style = self.model(content).detach()
+                content_loss = ContentLoss(target_style)
+                self.model.add_module(f"content_loss_{content_loss_idx}", content_loss) 
+                self.content_losses.append(content_loss)
+                content_loss_idx += 1
 
-            self.style_features.append(layer_subset)
-            style = layer_subset(style).detach()
-            style_loss = StyleLoss(style)
-            self.style_losses.append(style_loss)
-
-        self.num_style_layers = len(style_layers)
+        for i in range(len(self.model) - 1, -1, -1):
+            if isinstance(self.model[i], StyleLoss) or isinstance(self.model[i], ContentLoss):
+                self.model = self.model[:(i + 1)]
+                break
 
     def forward(self, x):
-        content_feature_maps = self.content_features(x)
-        style_feature_maps = [] 
-        for layer in self.style_features:
-            x = layer(x)
-            style_feature_maps.append(x)
-        return {"content": content_feature_maps, "style": style_feature_maps} 
+        return self.model(x)
+
+class Normalize(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()  
+        self.normalize = transforms.Compose([
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
+    def forward(self, x):
+        return self.normalize(x)

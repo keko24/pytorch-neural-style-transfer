@@ -2,5 +2,5 @@
     "epochs": 300,
     "lr": 1,
     "alpha": 10e0,
-    "beta": 10e6
+    "beta": 10e5
 }
