@@ -1,7 +1,9 @@
 import time
+
 import torch
 
 from feature_extractor import ContentAndStyleExtractor
+
 
 class StyleTransfer:
     def __init__(self, content_img, style_img, setup, DEVICE):
@@ -15,6 +17,7 @@ class StyleTransfer:
         optimizer = torch.optim.LBFGS([input_img])
         epoch = [0]
         while epoch[0] < self.setup["epochs"]:
+
             def closure():
                 with torch.no_grad():
                     input_img.clamp_(0, 1)
@@ -36,19 +39,25 @@ class StyleTransfer:
                 loss.backward()
 
                 epoch[0] += 1
-                print("Epoch {}/{}....\n".format(epoch[0], self.setup["epochs"]),
-                      "Content Loss: {:.4f}".format(content_loss.item()),
-                      "Style Loss: {:.4f}\n".format(style_loss.item()),
-                      "Total Loss: {:.4f}".format(loss.item()),
-                      )
+                print(
+                    "Epoch {}/{}....\n".format(epoch[0], self.setup["epochs"]),
+                    "Content Loss: {:.4f}".format(content_loss.item()),
+                    "Style Loss: {:.4f}\n".format(style_loss.item()),
+                    "Total Loss: {:.4f}".format(loss.item()),
+                )
                 return content_loss + style_loss
 
             epoch_start_time = time.time()
             optimizer.step(closure)
             epoch_end_time = int(time.time() - epoch_start_time)
-            print('epoch {} end time: {:02d}:{:02d}:{:02d}'.format(epoch[0], epoch_end_time // 3600,
-                                                           (epoch_end_time % 3600 // 60),
-                                                           epoch_end_time % 60))
+            print(
+                "epoch {} end time: {:02d}:{:02d}:{:02d}".format(
+                    epoch[0],
+                    epoch_end_time // 3600,
+                    (epoch_end_time % 3600 // 60),
+                    epoch_end_time % 60,
+                )
+            )
 
         with torch.no_grad():
             input_img.clamp_(0, 1)

@@ -1,13 +1,15 @@
 import json
 import os
 
-from torchvision import transforms
 from PIL import Image
+from torchvision import transforms
 
-preprocessor = transforms.Compose([
+preprocessor = transforms.Compose(
+    [
         transforms.Resize(256),
         transforms.ToTensor(),
-    ])
+    ]
+)
 
 
 def load_image(path, DEVICE):
@@ -16,10 +18,10 @@ def load_image(path, DEVICE):
     content = content.unsqueeze(0)
     content = content.to(DEVICE)
     return content
- 
+
 
 def load_json(path):
-    if os.path.exists(path) and path.endswith('.json'):
+    if os.path.exists(path) and path.endswith(".json"):
         with open(path, "r") as f:
             data = json.load(f)
             return data
